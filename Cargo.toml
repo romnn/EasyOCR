@@ -1,0 +1,17 @@
+[package]
+name = "EasyOCR"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ort = { version = "1", features = ["half", "download-binaries", "compile-static"] }
+ndarray = "0"
+image = "0"
+rand = "0"
+color-eyre = "0"
+# tracing = "0"
+
+[dependencies.tracing-subscriber]
+version = "0.3"
+default-features = false
+features = [ "env-filter", "fmt" ]

@@ -37,7 +37,6 @@ else:
 
 LOGGER = getLogger(__name__)
 
-
 class Reader(object):
     def __init__(
         self,

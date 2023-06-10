@@ -23,45 +23,16 @@ def copyStateDict(state_dict):
     return new_state_dict
 
 
-def test_net(
-    canvas_size,
-    mag_ratio,
-    net,
-    image,
+def compute_boxes_and_polys(
+    y,
     text_threshold,
     link_threshold,
     low_text,
     poly,
-    device,
-    estimate_num_chars=False,
+    estimate_num_chars,
+    ratio_w,
+    ratio_h,
 ):
-    if (
-        isinstance(image, np.ndarray) and len(image.shape) == 4
-    ):  # image is batch of np arrays
-        image_arrs = image
-    else:  # image is single numpy array
-        image_arrs = [image]
-
-    img_resized_list = []
-    # resize
-    for img in image_arrs:
-        img_resized, target_ratio, size_heatmap = resize_aspect_ratio(
-            img, canvas_size, interpolation=cv2.INTER_LINEAR, mag_ratio=mag_ratio
-        )
-        img_resized_list.append(img_resized)
-    ratio_h = ratio_w = 1 / target_ratio
-    # preprocessing
-    x = [
-        np.transpose(normalizeMeanVariance(n_img), (2, 0, 1))
-        for n_img in img_resized_list
-    ]
-    x = torch.from_numpy(np.array(x))
-    x = x.to(device)
-
-    # forward pass
-    with torch.no_grad():
-        y, feature = net(x)
-
     boxes_list, polys_list = [], []
     for out in y:
         # make score and link map
@@ -96,24 +67,64 @@ def test_net(
     return boxes_list, polys_list
 
 
+def test_net(
+    canvas_size,
+    mag_ratio,
+    net,
+    image,
+    text_threshold,
+    link_threshold,
+    low_text,
+    poly,
+    device,
+    estimate_num_chars=False,
+):
+    if isinstance(image, np.ndarray) and len(image.shape) == 4:  # image is batch of np arrays
+        image_arrs = image
+    else:  # image is single numpy array
+        image_arrs = [image]
+
+    img_resized_list = []
+    # resize
+    for img in image_arrs:
+        img_resized, target_ratio, size_heatmap = resize_aspect_ratio(
+            img, canvas_size, interpolation=cv2.INTER_LINEAR, mag_ratio=mag_ratio
+        )
+        img_resized_list.append(img_resized)
+    ratio_h = ratio_w = 1 / target_ratio
+    # preprocessing
+    x = [np.transpose(normalizeMeanVariance(n_img), (2, 0, 1)) for n_img in img_resized_list]
+    x = torch.from_numpy(np.array(x))
+    x = x.to(device)
+
+    # forward pass
+    with torch.no_grad():
+        y, _feature = net(x)
+
+    return compute_boxes_and_polys(
+        y,
+        text_threshold=text_threshold,
+        link_threshold=link_threshold,
+        low_text=low_text,
+        poly=poly,
+        estimate_num_chars=estimate_num_chars,
+        ratio_w=ratio_w,
+        ratio_h=ratio_h,
+    )
+
+
 def get_detector(trained_model, device="cpu", quantize=True, cudnn_benchmark=False):
     net = CRAFT()
 
     if device == "cpu":
-        net.load_state_dict(
-            copyStateDict(torch.load(trained_model, map_location=device))
-        )
+        net.load_state_dict(copyStateDict(torch.load(trained_model, map_location=device)))
         if quantize:
             try:
-                torch.quantization.quantize_dynamic(
-                    net, dtype=torch.qint8, inplace=True
-                )
+                torch.quantization.quantize_dynamic(net, dtype=torch.qint8, inplace=True)
             except:
                 pass
     else:
-        net.load_state_dict(
-            copyStateDict(torch.load(trained_model, map_location=device))
-        )
+        net.load_state_dict(copyStateDict(torch.load(trained_model, map_location=device)))
         net = torch.nn.DataParallel(net).to(device)
         cudnn.benchmark = cudnn_benchmark
 
@@ -150,8 +161,7 @@ def get_textbox(
     )
     if estimate_num_chars:
         polys_list = [
-            [p for p, _ in sorted(polys, key=lambda x: abs(optimal_num_chars - x[1]))]
-            for polys in polys_list
+            [p for p, _ in sorted(polys, key=lambda x: abs(optimal_num_chars - x[1]))] for polys in polys_list
         ]
 
     for polys in polys_list:
