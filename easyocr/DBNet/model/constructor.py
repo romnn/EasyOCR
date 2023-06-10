@@ -1,6 +1,7 @@
 import importlib
 from collections import OrderedDict
 
+
 class State:
     def __init__(self, autoload=True, default=None):
         self.autoload = autoload
@@ -15,13 +16,13 @@ class StateMeta(type):
                 current_states.append((key, value))
 
         current_states.sort(key=lambda x: x[0])
-        attrs['states'] = OrderedDict(current_states)
+        attrs["states"] = OrderedDict(current_states)
         new_class = super(StateMeta, mcs).__new__(mcs, name, bases, attrs)
 
         # Walk through the MRO
         states = OrderedDict()
         for base in reversed(new_class.__mro__):
-            if hasattr(base, 'states'):
+            if hasattr(base, "states"):
                 states.update(base.states)
         new_class.states = states
 
@@ -42,8 +43,8 @@ class Configurable(metaclass=StateMeta):
 
     @staticmethod
     def extract_class_from_args(args):
-        cls = args.copy().pop('class')
-        package, cls = cls.rsplit('.', 1)
+        cls = args.copy().pop("class")
+        package, cls = cls.rsplit(".", 1)
         module = importlib.import_module(package)
         cls = getattr(module, cls)
         return cls
@@ -56,10 +57,13 @@ class Configurable(metaclass=StateMeta):
     def load(self, state_name, **kwargs):
         # FIXME: kwargs should be filtered
         # Args passed from command line
-        cmd = kwargs.pop('cmd', dict())
+        cmd = kwargs.pop("cmd", dict())
         if state_name in kwargs:
-            setattr(self, state_name, self.create_member_from_config(
-                (kwargs[state_name], cmd)))
+            setattr(
+                self,
+                state_name,
+                self.create_member_from_config((kwargs[state_name], cmd)),
+            )
         else:
             setattr(self, state_name, self.states[state_name].default)
 
@@ -70,17 +74,19 @@ class Configurable(metaclass=StateMeta):
         elif isinstance(args, (list, tuple)):
             return [self.create_member_from_config((subargs, cmd)) for subargs in args]
         elif isinstance(args, dict):
-            if 'class' in args:
+            if "class" in args:
                 cls = self.extract_class_from_args(args)
                 return cls(**args, cmd=cmd)
-            return {key: self.create_member_from_config((subargs, cmd)) for key, subargs in args.items()}
+            return {
+                key: self.create_member_from_config((subargs, cmd))
+                for key, subargs in args.items()
+            }
         else:
             return args
 
     def dump(self):
         state = {}
-        state['class'] = self.__class__.__module__ + \
-            '.' + self.__class__.__name__
+        state["class"] = self.__class__.__module__ + "." + self.__class__.__name__
         for name, value in self.states.items():
             obj = getattr(self, name)
             state[name] = self.dump_obj(obj)
@@ -89,7 +95,7 @@ class Configurable(metaclass=StateMeta):
     def dump_obj(self, obj):
         if obj is None:
             return None
-        elif hasattr(obj, 'dump'):
+        elif hasattr(obj, "dump"):
             return obj.dump()
         elif isinstance(obj, (int, float, str)):
             return obj
@@ -99,5 +105,3 @@ class Configurable(metaclass=StateMeta):
             return {key: self.dump_obj(value) for key, value in obj.items()}
         else:
             return str(obj)
-
-
