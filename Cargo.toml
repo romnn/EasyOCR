@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 ort = { version = "1", features = ["half", "download-binaries", "compile-static"] }
 ndarray = "0"
+ndarray-image = "0"
 image = "0"
 rand = "0"
 color-eyre = "0"
