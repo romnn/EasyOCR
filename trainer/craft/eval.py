@@ -2,13 +2,16 @@
 
 import argparse
 import os
+import sys
 
 import cv2
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
+from pathlib import Path
 from tqdm import tqdm
-import wandb
+from pprint import pprint
+import warnings
 
 from config.load_config import load_yaml, DotDict
 from model.craft import CRAFT
@@ -22,9 +25,7 @@ from utils.inference_boxes import (
 from utils.util import copyStateDict
 
 
-
 def save_result_synth(img_file, img, pre_output, pre_box, gt_box=None, result_dir=""):
-
     img = np.array(img)
     img_copy = img.copy()
     region = pre_output[0]
@@ -38,9 +39,7 @@ def save_result_synth(img_file, img, pre_output, pre_box, gt_box=None, result_di
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
-            cv2.polylines(
-                img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2
-            )
+            cv2.polylines(img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2)
         except:
             pass
 
@@ -67,7 +66,6 @@ def save_result_synth(img_file, img, pre_output, pre_box, gt_box=None, result_di
 
 
 def save_result_2015(img_file, img, pre_output, pre_box, gt_box, result_dir):
-
     img = np.array(img)
     img_copy = img.copy()
     region = pre_output[0]
@@ -80,9 +78,7 @@ def save_result_2015(img_file, img, pre_output, pre_box, gt_box, result_dir):
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
-            cv2.polylines(
-                img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2
-            )
+            cv2.polylines(img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2)
         except:
             pass
 
@@ -106,7 +102,6 @@ def save_result_2015(img_file, img, pre_output, pre_box, gt_box, result_dir):
 
 
 def save_result_2013(img_file, img, pre_output, pre_box, gt_box=None, result_dir=""):
-
     img = np.array(img)
     img_copy = img.copy()
     region = pre_output[0]
@@ -120,9 +115,7 @@ def save_result_2013(img_file, img, pre_output, pre_box, gt_box=None, result_dir
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
-            cv2.polylines(
-                img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2
-            )
+            cv2.polylines(img, [poly.reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2)
         except:
             pass
 
@@ -141,15 +134,14 @@ def save_result_2013(img_file, img, pre_output, pre_box, gt_box=None, result_dir
     overlay_img = overlay(img_copy, region, affinity, pre_box)
 
     # Save result image
-    res_img_path = result_dir + "/res_" + filename + ".jpg"
-    cv2.imwrite(res_img_path, img)
+    res_img_path = result_dir / ("res_" + filename + ".jpg")
+    cv2.imwrite(str(res_img_path), img)
 
-    overlay_image_path = result_dir + "/res_" + filename + "_box.jpg"
-    cv2.imwrite(overlay_image_path, overlay_img)
+    overlay_image_path = result_dir / ("res_" + filename + "_box.jpg")
+    cv2.imwrite(str(overlay_image_path), overlay_img)
 
 
 def overlay(image, region, affinity, single_img_bbox):
-
     height, width, channel = image.shape
 
     region_score = cv2.resize(region, (width, height))
@@ -176,60 +168,42 @@ def overlay(image, region, affinity, single_img_bbox):
 
 
 def load_test_dataset_iou(test_folder_name, config):
-
     if test_folder_name == "synthtext":
         total_bboxes_gt, total_img_path = load_synthtext_gt(config.test_data_dir)
 
     elif test_folder_name == "icdar2013":
-        total_bboxes_gt, total_img_path = load_icdar2013_gt(
-            dataFolder=config.test_data_dir
-        )
+        total_bboxes_gt, total_img_path = load_icdar2013_gt(dataFolder=config.test_data_dir)
 
     elif test_folder_name == "icdar2015":
-        total_bboxes_gt, total_img_path = load_icdar2015_gt(
-            dataFolder=config.test_data_dir
-        )
+        total_bboxes_gt, total_img_path = load_icdar2015_gt(dataFolder=config.test_data_dir)
 
     elif test_folder_name == "custom_data":
-        total_bboxes_gt, total_img_path = load_icdar2015_gt(
-            dataFolder=config.test_data_dir
-        )
+        total_bboxes_gt, total_img_path = load_icdar2015_gt(dataFolder=config.test_data_dir)
 
     else:
-        print("not found test dataset")
+        raise ValueError("not found test dataset")
         return None, None
 
     return total_bboxes_gt, total_img_path
 
 
 def viz_test(img, pre_output, pre_box, gt_box, img_name, result_dir, test_folder_name):
-
     if test_folder_name == "synthtext":
-        save_result_synth(
-            img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
-        )
+        save_result_synth(img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir)
     elif test_folder_name == "icdar2013":
-        save_result_2013(
-            img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
-        )
+        save_result_2013(img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir)
     elif test_folder_name == "icdar2015":
-        save_result_2015(
-            img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
-        )
+        save_result_2015(img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir)
     elif test_folder_name == "custom_data":
-        save_result_2015(
-            img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
-        )
+        save_result_2015(img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir)
     else:
-        print("not found test dataset")
+        raise ValueError("not found test dataset")
 
 
-def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model, mode):
+def main_eval(model_path, backbone, config, dataset_name, evaluator, result_dir, model, mode):
+    result_dir.mkdir(parents=True, exist_ok=True)
 
-    if not os.path.exists(result_dir):
-        os.makedirs(result_dir, exist_ok=True)
-
-    total_imgs_bboxes_gt, total_imgs_path = load_test_dataset_iou("custom_data", config)
+    total_imgs_bboxes_gt, total_imgs_path = load_test_dataset_iou(dataset_name, config)
 
     if mode == "weak_supervision" and torch.cuda.device_count() != 1:
         gpu_count = torch.cuda.device_count() // 2
@@ -238,47 +212,45 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
     gpu_idx = torch.cuda.current_device()
     torch.cuda.set_device(gpu_idx)
 
-    # Only evaluation time
-    if model is None:
-        piece_imgs_path = total_imgs_path
+    piece_imgs_path = total_imgs_path
 
+    # when not run inside training loop, model will be none (this should go to __main__ then?)
+    if model is None:
         if backbone == "vgg":
             model = CRAFT()
         else:
-            raise Exception("Undefined architecture")
+            raise RuntimeError("Undefined architecture")
 
-        print("Loading weights from checkpoint (" + model_path + ")")
-        net_param = torch.load(model_path, map_location=f"cuda:{gpu_idx}")
-        model.load_state_dict(copyStateDict(net_param["craft"]))
+        if model_path is not None:
+            print(f"Loading weights from checkpoint ({model_path})")
+            net_param = torch.load(model_path, map_location=f"cuda:{gpu_idx}")
+            model.load_state_dict(copyStateDict(net_param["craft"]))
 
         if config.cuda:
             model = model.cuda()
             cudnn.benchmark = False
 
     # Distributed evaluation in the middle of training time
-    else:
-        if buffer is not None:
-            # check all buffer value is None for distributed evaluation
-            assert all(
-                v is None for v in buffer
-            ), "Buffer already filled with another value."
-        slice_idx = len(total_imgs_bboxes_gt) // gpu_count
-
-        # last gpu
-        if gpu_idx == gpu_count - 1:
-            piece_imgs_path = total_imgs_path[gpu_idx * slice_idx :]
-            # piece_imgs_bboxes_gt = total_imgs_bboxes_gt[gpu_idx * slice_idx:]
-        else:
-            piece_imgs_path = total_imgs_path[
-                gpu_idx * slice_idx : (gpu_idx + 1) * slice_idx
-            ]
-            # piece_imgs_bboxes_gt = total_imgs_bboxes_gt[gpu_idx * slice_idx: (gpu_idx + 1) * slice_idx]
+    # else:
+    #     if buffer is not None:
+    #         # check all buffer value is None for distributed evaluation
+    #         assert all(v is None for v in buffer), "Buffer already filled with another value."
+    #     slice_idx = len(total_imgs_bboxes_gt) // gpu_count
+    #
+    #     # last gpu
+    #     if gpu_idx == gpu_count - 1:
+    #         piece_imgs_path = total_imgs_path[gpu_idx * slice_idx :]
+    #         # piece_imgs_bboxes_gt = total_imgs_bboxes_gt[gpu_idx * slice_idx:]
+    #     else:
+    #         piece_imgs_path = total_imgs_path[gpu_idx * slice_idx : (gpu_idx + 1) * slice_idx]
+    #         # piece_imgs_bboxes_gt = total_imgs_bboxes_gt[gpu_idx * slice_idx: (gpu_idx + 1) * slice_idx]
+    #
 
     model.eval()
 
-    # -----------------------------------------------------------------------------------------------------------------#
     total_imgs_bboxes_pre = []
     for k, img_path in enumerate(tqdm(piece_imgs_path)):
+        # for k, img_path in enumerate(piece_imgs_path):
         image = cv2.imread(img_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         single_img_bbox = []
@@ -298,11 +270,12 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
             box_info = {"points": box, "text": "###", "ignore": False}
             single_img_bbox.append(box_info)
         total_imgs_bboxes_pre.append(single_img_bbox)
-        # Distributed evaluation -------------------------------------------------------------------------------------#
-        if buffer is not None:
-            buffer[gpu_idx * slice_idx + k] = single_img_bbox
+
+        # assert buffer is None
+        # Distributed evaluation
+        # if buffer is not None:
+        #     buffer[gpu_idx * slice_idx + k] = single_img_bbox
         # print(sum([element is not None for element in buffer]))
-        # -------------------------------------------------------------------------------------------------------------#
 
         if config.vis_opt:
             viz_test(
@@ -312,47 +285,51 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
                 gt_box=total_imgs_bboxes_gt[k],
                 img_name=img_path,
                 result_dir=result_dir,
-                test_folder_name="custom_data",
+                test_folder_name=dataset_name,
             )
 
+        # break
+
     # When distributed evaluation mode, wait until buffer is full filled
-    if buffer is not None:
-        while None in buffer:
-            continue
-        assert all(v is not None for v in buffer), "Buffer not filled"
-        total_imgs_bboxes_pre = buffer
+    # if buffer is not None:
+    #     while None in buffer:
+    #         continue
+    #     assert all(v is not None for v in buffer), "Buffer not filled"
+    #     total_imgs_bboxes_pre = buffer
 
     results = []
     for i, (gt, pred) in enumerate(zip(total_imgs_bboxes_gt, total_imgs_bboxes_pre)):
-        perSampleMetrics_dict = evaluator.evaluate_image(gt, pred)
-        results.append(perSampleMetrics_dict)
+        sample_metrics_dict = evaluator.evaluate_image(gt, pred)
+        results.append(sample_metrics_dict)
 
     metrics = evaluator.combine_results(results)
-    print(metrics)
     return metrics
 
-def cal_eval(config, data, res_dir_name, opt, mode):
+
+def cal_eval(config, dataset_name, result_dir_name, opt, mode):
     evaluator = DetectionIoUEvaluator()
-    test_config = DotDict(config.test[data])
-    res_dir = os.path.join(os.path.join("exp", args.yaml), "{}".format(res_dir_name))
+    test_config = DotDict(config.test[dataset_name])
+    config_name = args.yaml
+    result_dir = Path("exp") / config_name / result_dir_name
 
     if opt == "iou_eval":
-        main_eval(
-            config.test.trained_model,
-            config.train.backbone,
-            test_config,
-            evaluator,
-            res_dir,
-            buffer=None,
+        metrics = main_eval(
+            model_path=config.test.trained_model,
+            backbone=config.train.backbone,
+            config=test_config,
+            dataset_name=dataset_name,
+            evaluator=evaluator,
+            result_dir=result_dir,
+            # buffer=None,
             model=None,
             mode=mode,
         )
+        pprint(metrics)
     else:
-        print("Undefined evaluation")
+        raise ValueError("Undefined evaluation")
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="CRAFT Text Detection Eval")
     parser.add_argument(
         "--yaml",
@@ -368,14 +345,19 @@ if __name__ == "__main__":
     config = DotDict(config)
 
     if config["wandb_opt"]:
+        import wandb
+
         wandb.init(project="evaluation", entity="gmuffiness", name=args.yaml)
         wandb.config.update(config)
 
     val_result_dir_name = args.yaml
     cal_eval(
         config,
-        "custom_data",
-        val_result_dir_name + "-ic15-iou",
+        dataset_name="icdar2013",
+        result_dir_name=val_result_dir_name + "-ic15-iou",
         opt="iou_eval",
         mode=None,
     )
+
+    if config["wandb_opt"]:
+        wandb.finish()

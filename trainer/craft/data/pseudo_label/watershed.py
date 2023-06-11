@@ -30,7 +30,6 @@ def segment_region_score(watershed_param, region_score, word_image, pseudo_vis_o
 def exec_watershed_by_version(
     watershed_param, region_score, word_image, pseudo_vis_opt
 ):
-
     func_name_map_dict = {
         "skimage": segment_region_score,
     }

@@ -23,14 +23,12 @@ from utils.util import copyStateDict, save_parser
 
 class Trainer(object):
     def __init__(self, config, gpu, mode):
-
         self.config = config
         self.gpu = gpu
         self.mode = mode
         self.net_param = self.get_load_param(gpu)
 
     def get_synth_loader(self):
-
         dataset = SynthTextDataSet(
             output_size=self.config.train.data.output_size,
             data_dir=self.config.train.synth_data_dir,
@@ -61,7 +59,6 @@ class Trainer(object):
         return syn_loader
 
     def get_custom_dataset(self):
-
         custom_dataset = CustomDataset(
             output_size=self.config.train.data.output_size,
             data_dir=self.config.data_root_dir,
@@ -84,7 +81,6 @@ class Trainer(object):
         return custom_dataset
 
     def get_load_param(self, gpu):
-
         if self.config.train.ckpt_path is not None:
             map_location = "cuda:%d" % gpu
             param = torch.load(self.config.train.ckpt_path, map_location=map_location)
@@ -94,7 +90,7 @@ class Trainer(object):
         return param
 
     def adjust_learning_rate(self, optimizer, gamma, step, lr):
-        lr = lr * (gamma ** step)
+        lr = lr * (gamma**step)
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
         return param_group["lr"]
@@ -139,7 +135,6 @@ class Trainer(object):
             )
 
     def train(self, buffer_dict):
-
         torch.cuda.set_device(self.gpu)
         total_gpu_num = torch.cuda.device_count()
 
@@ -273,9 +268,12 @@ class Trainer(object):
 
                 if self.config.train.use_synthtext:
                     # Synth image load
-                    syn_image, syn_region_label, syn_affi_label, syn_confidence_mask = next(
-                        batch_syn
-                    )
+                    (
+                        syn_image,
+                        syn_region_label,
+                        syn_affi_label,
+                        syn_confidence_mask,
+                    ) = next(batch_syn)
                     syn_image = syn_image.cuda(non_blocking=True)
                     syn_region_label = syn_region_label.cuda(non_blocking=True)
                     syn_affi_label = syn_affi_label.cuda(non_blocking=True)
@@ -283,10 +281,10 @@ class Trainer(object):
 
                     # concat syn & custom image
                     images = torch.cat((syn_image, images), 0)
-                    region_image_label = torch.cat(
-                        (syn_region_label, region_scores), 0
+                    region_image_label = torch.cat((syn_region_label, region_scores), 0)
+                    affinity_image_label = torch.cat(
+                        (syn_affi_label, affinity_scores), 0
                     )
-                    affinity_image_label = torch.cat((syn_affi_label, affinity_scores), 0)
                     confidence_mask_label = torch.cat(
                         (syn_confidence_mask, confidence_masks), 0
                     )
@@ -297,7 +295,6 @@ class Trainer(object):
 
                 if self.config.train.amp:
                     with torch.cuda.amp.autocast():
-
                         output, _ = craft(images)
                         out1 = output[:, :, :, 0]
                         out2 = output[:, :, :, 1]
@@ -365,7 +362,6 @@ class Trainer(object):
                     train_step % self.config.train.eval_interval == 0
                     and train_step != 0
                 ):
-
                     craft.eval()
                     # initialize all buffer value with zero
                     if self.gpu == 0:
@@ -435,6 +431,7 @@ class Trainer(object):
                 )
             torch.save(save_param_dic, save_param_path)
 
+
 def main():
     parser = argparse.ArgumentParser(description="CRAFT custom data train")
     parser.add_argument(
@@ -486,12 +483,18 @@ def main():
     torch.multiprocessing.spawn(
         main_worker,
         nprocs=ngpus_per_node,
-        args=(args.port, ngpus_per_node, config, buffer_dict, exp_name, mode,),
+        args=(
+            args.port,
+            ngpus_per_node,
+            config,
+            buffer_dict,
+            exp_name,
+            mode,
+        ),
     )
 
 
 def main_worker(gpu, port, ngpus_per_node, config, buffer_dict, exp_name, mode):
-
     torch.distributed.init_process_group(
         backend="nccl",
         init_method="tcp://127.0.0.1:" + port,
@@ -518,6 +521,7 @@ def main_worker(gpu, port, ngpus_per_node, config, buffer_dict, exp_name, mode):
 
     torch.distributed.barrier()
     torch.distributed.destroy_process_group()
+
 
 if __name__ == "__main__":
     main()

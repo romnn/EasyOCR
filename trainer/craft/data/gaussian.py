@@ -23,13 +23,13 @@ class GaussianBuilder(object):
                     1
                     / 2
                     / np.pi
-                    / (self.sigma ** 2)
+                    / (self.sigma**2)
                     * np.exp(
                         -1
                         / 2
                         * (
-                            (i - self.init_size / 2) ** 2 / (self.sigma ** 2)
-                            + (j - self.init_size / 2) ** 2 / (self.sigma ** 2)
+                            (i - self.init_size / 2) ** 2 / (self.sigma**2)
+                            + (j - self.init_size / 2) ** 2 / (self.sigma**2)
                         )
                     )
                 )
@@ -42,7 +42,6 @@ class GaussianBuilder(object):
         return gaussian_map, gaussian_map_color
 
     def generate_circle_mask(self):
-
         zero_arr = np.zeros((self.init_size, self.init_size), np.float32)
         circle_mask = cv2.circle(
             img=zero_arr,
@@ -113,7 +112,8 @@ class GaussianBuilder(object):
 
         try:
             bbox_area_of_image = score_map[
-                bbox_top : bbox_top + height, bbox_left : bbox_left + width,
+                bbox_top : bbox_top + height,
+                bbox_left : bbox_left + width,
             ]
             high_value_score = np.where(
                 warped_gaussian_map > bbox_area_of_image,
@@ -121,7 +121,8 @@ class GaussianBuilder(object):
                 bbox_area_of_image,
             )
             score_map[
-                bbox_top : bbox_top + height, bbox_left : bbox_left + width,
+                bbox_top : bbox_top + height,
+                bbox_left : bbox_left + width,
             ] = high_value_score
 
         except Exception as e:
@@ -169,7 +170,6 @@ class GaussianBuilder(object):
     def generate_affinity(
         self, img_h, img_w, word_level_char_bbox, horizontal_text_bools
     ):
-
         affinity_map = np.zeros([img_h, img_w], dtype=np.float32)
         all_affinity_bbox = []
         for i in range(len(word_level_char_bbox)):

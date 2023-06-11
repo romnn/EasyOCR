@@ -130,8 +130,7 @@ def saveImage(
 
 
 def save_parser(args):
-
-    """ final options """
+    """final options"""
     with open(f"{args.results_dir}/opt.txt", "a", encoding="utf-8") as opt_file:
         opt_log = "------------ Options -------------\n"
         arg = vars(args)

@@ -15,7 +15,7 @@ import math
 import xml.etree.ElementTree as elemTree
 
 
-#-------------------------------------------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------------------------------------------#
 def rotatePoint(xc, yc, xp, yp, theta):
     xoff = xp - xc
     yoff = yp - yc
@@ -23,9 +23,10 @@ def rotatePoint(xc, yc, xp, yp, theta):
     cosTheta = math.cos(theta)
     sinTheta = math.sin(theta)
     pResx = cosTheta * xoff + sinTheta * yoff
-    pResy = - sinTheta * xoff + cosTheta * yoff
+    pResy = -sinTheta * xoff + cosTheta * yoff
     # pRes = (xc + pResx, yc + pResy)
     return int(xc + pResx), int(yc + pResy)
+
 
 def addRotatedShape(cx, cy, w, h, angle):
     p0x, p0y = rotatePoint(cx, cy, cx - w / 2, cy - h / 2, -angle)
@@ -37,6 +38,7 @@ def addRotatedShape(cx, cy, w, h, angle):
 
     return points
 
+
 def xml_parsing(xml):
     tree = elemTree.parse(xml)
 
@@ -46,7 +48,7 @@ def xml_parsing(xml):
     for element in iter_element:
         annotation = {}  # Initialize the dict to store labels
 
-        annotation['name'] = element.find("name").text  # Save the name tag value
+        annotation["name"] = element.find("name").text  # Save the name tag value
 
         box_coords = element.iter(tag="robndbox")
 
@@ -59,7 +61,7 @@ def xml_parsing(xml):
 
             convertcoodi = addRotatedShape(cx, cy, w, h, angle)
 
-            annotation['box_coodi'] = convertcoodi
+            annotation["box_coodi"] = convertcoodi
             annotations.append(annotation)
 
         box_coords = element.iter(tag="bndbox")
@@ -71,47 +73,45 @@ def xml_parsing(xml):
             ymax = int(box_coord.find("ymax").text)
             # annotation['bndbox'] = [xmin,ymin,xmax,ymax]
 
-            annotation['box_coodi'] = [[xmin, ymin], [xmax, ymin], [xmax, ymax],
-                                       [xmin, ymax]]
+            annotation["box_coodi"] = [
+                [xmin, ymin],
+                [xmax, ymin],
+                [xmax, ymax],
+                [xmin, ymax],
+            ]
             annotations.append(annotation)
-
-
-
 
     bounds = []
     for i in range(len(annotations)):
         box_info_dict = {"points": None, "text": None, "ignore": None}
 
-        box_info_dict["points"] = np.array(annotations[i]['box_coodi'])
-        if annotations[i]['name'] == "dnc":
+        box_info_dict["points"] = np.array(annotations[i]["box_coodi"])
+        if annotations[i]["name"] == "dnc":
             box_info_dict["text"] = "###"
             box_info_dict["ignore"] = True
         else:
-            box_info_dict["text"] = annotations[i]['name']
+            box_info_dict["text"] = annotations[i]["name"]
             box_info_dict["ignore"] = False
 
         bounds.append(box_info_dict)
 
-
-
     return bounds
 
-#-------------------------------------------------------------------------------------------------------------------#
+
+# -------------------------------------------------------------------------------------------------------------------#
+
 
 def load_prescription_gt(dataFolder):
-
-
     total_img_path = []
     total_imgs_bboxes = []
-    for (root, directories, files) in os.walk(dataFolder):
+    for root, directories, files in os.walk(dataFolder):
         for file in files:
-            if '.jpg' in file:
+            if ".jpg" in file:
                 img_path = os.path.join(root, file)
                 total_img_path.append(img_path)
-            if '.xml' in file:
+            if ".xml" in file:
                 gt_path = os.path.join(root, file)
                 total_imgs_bboxes.append(gt_path)
-
 
     total_imgs_parsing_bboxes = []
     for img_path, bbox in zip(sorted(total_img_path), sorted(total_imgs_bboxes)):
@@ -122,31 +122,27 @@ def load_prescription_gt(dataFolder):
         result_label = xml_parsing(bbox)
         total_imgs_parsing_bboxes.append(result_label)
 
-
     return total_imgs_parsing_bboxes, sorted(total_img_path)
 
 
 # NOTE
 def load_prescription_cleval_gt(dataFolder):
-
-
     total_img_path = []
     total_gt_path = []
-    for (root, directories, files) in os.walk(dataFolder):
+    for root, directories, files in os.walk(dataFolder):
         for file in files:
-            if '.jpg' in file:
+            if ".jpg" in file:
                 img_path = os.path.join(root, file)
                 total_img_path.append(img_path)
-            if '_cl.txt' in file:
+            if "_cl.txt" in file:
                 gt_path = os.path.join(root, file)
                 total_gt_path.append(gt_path)
-
 
     total_imgs_parsing_bboxes = []
     for img_path, gt_path in zip(sorted(total_img_path), sorted(total_gt_path)):
         # check file
 
-        assert img_path.split(".jpg")[0] == gt_path.split('_label_cl.txt')[0]
+        assert img_path.split(".jpg")[0] == gt_path.split("_label_cl.txt")[0]
 
         lines = open(gt_path, encoding="utf-8").readlines()
         word_bboxes = []
@@ -165,10 +161,7 @@ def load_prescription_cleval_gt(dataFolder):
 
 
 def load_synthtext_gt(data_folder):
-
-    synth_dataset = SynthTextDataSet(
-        output_size=768, data_dir=data_folder, saved_gt_dir=data_folder, logging=False
-    )
+    synth_dataset = SynthTextDataSet(output_size=768, data_dir=data_folder, saved_gt_dir=data_folder, logging=False)
     img_names, img_bbox, img_words = synth_dataset.load_data(bbox="word")
 
     total_img_path = []
@@ -217,11 +210,7 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
     total_img_path = []
     for gt_path in gt_folder_path:
         gt_path = os.path.join(os.path.join(dataFolder, gt_folderName), gt_path)
-        img_path = (
-            gt_path.replace(gt_folderName, img_folderName)
-            .replace(".txt", ".jpg")
-            .replace("gt_", "")
-        )
+        img_path = gt_path.replace(gt_folderName, img_folderName).replace(".txt", ".jpg").replace("gt_", "")
         image = cv2.imread(img_path)
         lines = open(gt_path, encoding="utf-8").readlines()
         single_img_bboxes = []
@@ -233,9 +222,7 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
             word = box_info[8:]
             word = ",".join(word)
             box_points = np.array(box_points, np.int32).reshape(4, 2)
-            cv2.polylines(
-                image, [np.array(box_points).astype(np.int)], True, (0, 0, 255), 1
-            )
+            cv2.polylines(image, [np.array(box_points).astype(np.int32)], True, (0, 0, 255), 1)
             box_info_dict["points"] = box_points
             box_info_dict["text"] = word
             if word == "###":
@@ -250,7 +237,6 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
 
 
 def load_icdar2013_gt(dataFolder, isTraing=False):
-
     # choose test dataset
     if isTraing:
         img_folderName = "Challenge2_Test_Task12_Images"
@@ -265,13 +251,10 @@ def load_icdar2013_gt(dataFolder, isTraing=False):
     total_img_path = []
     for gt_path in gt_folder_path:
         gt_path = os.path.join(os.path.join(dataFolder, gt_folderName), gt_path)
-        img_path = (
-            gt_path.replace(gt_folderName, img_folderName)
-            .replace(".txt", ".jpg")
-            .replace("gt_", "")
-        )
+        img_path = gt_path.replace(gt_folderName, img_folderName).replace(".txt", ".jpg").replace("gt_", "")
         image = cv2.imread(img_path)
-        lines = open(gt_path, encoding="utf-8").readlines()
+        with open(gt_path, encoding="utf-8") as f:
+            lines = f.readlines()
         single_img_bboxes = []
         for line in lines:
             box_info_dict = {"points": None, "text": None, "ignore": None}
@@ -340,9 +323,7 @@ def test_net(
     score_link = score_link[: size_heatmap[0], : size_heatmap[1]]
 
     # Post-processing
-    boxes, polys = getDetBoxes(
-        score_text, score_link, text_threshold, link_threshold, low_text, poly
-    )
+    boxes, polys = getDetBoxes(score_text, score_link, text_threshold, link_threshold, low_text, poly)
 
     # coordinate adjustment
     boxes = adjustResultCoordinates(boxes, ratio_w, ratio_h)

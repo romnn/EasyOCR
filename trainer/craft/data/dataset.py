@@ -84,7 +84,6 @@ class CraftBaseDataset(Dataset):
                     augment_targets, self.output_size
                 )
             elif self.aug.random_crop.version == "random_resize_crop":
-
                 if len(self.pre_crop_area) > 0:
                     pre_crop_area = self.pre_crop_area
                 else:
@@ -100,7 +99,10 @@ class CraftBaseDataset(Dataset):
                 )
 
             elif self.aug.random_crop.version == "random_crop":
-                augment_targets = random_crop(augment_targets, self.output_size,)
+                augment_targets = random_crop(
+                    augment_targets,
+                    self.output_size,
+                )
 
             else:
                 assert "Undefined RandomCrop version"
@@ -237,7 +239,6 @@ class SynthTextDataSet(CraftBaseDataset):
         self.vis_index = list(range(1000))
 
     def load_data(self, bbox="char"):
-
         gt = scio.loadmat(os.path.join(self.data_dir, "gt.mat"))
         img_names = gt["imnames"][0]
         img_words = gt["txt"][0]

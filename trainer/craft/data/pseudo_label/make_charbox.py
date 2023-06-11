@@ -1,6 +1,7 @@
 import os
 import random
 import math
+import re
 
 import numpy as np
 import cv2
@@ -20,12 +21,8 @@ class PseudoCharBoxBuilder:
         self.flag = False
 
     def crop_image_by_bbox(self, image, box, word):
-        w = max(
-            int(np.linalg.norm(box[0] - box[1])), int(np.linalg.norm(box[2] - box[3]))
-        )
-        h = max(
-            int(np.linalg.norm(box[0] - box[3])), int(np.linalg.norm(box[1] - box[2]))
-        )
+        w = max(int(np.linalg.norm(box[0] - box[1])), int(np.linalg.norm(box[2] - box[3])))
+        h = max(int(np.linalg.norm(box[0] - box[3])), int(np.linalg.norm(box[1] - box[2])))
         try:
             word_ratio = h / w
         except:
@@ -97,7 +94,12 @@ class PseudoCharBoxBuilder:
         return word_img_scores
 
     def visualize_pseudo_label(
-        self, word_image, region_score, watershed_box, pseudo_char_bbox, img_name,
+        self,
+        word_image,
+        region_score,
+        watershed_box,
+        pseudo_char_bbox,
+        img_name,
     ):
         word_img_h, word_img_w, _ = word_image.shape
         word_img_cp1 = word_image.copy()
@@ -117,22 +119,16 @@ class PseudoCharBoxBuilder:
             )
 
         for box in _pseudo_char_bbox:
-            cv2.polylines(
-                np.uint8(word_img_cp2), [np.reshape(box, (-1, 1, 2))], True, (255, 0, 0)
-            )
+            cv2.polylines(np.uint8(word_img_cp2), [np.reshape(box, (-1, 1, 2))], True, (255, 0, 0))
 
         # NOTE: Just for visualize, put gaussian map on char box
         pseudo_gt_region_score = self.gaussian_builder.generate_region(
             word_img_h, word_img_w, [_pseudo_char_bbox], [True]
         )
 
-        pseudo_gt_region_score = cv2.applyColorMap(
-            (pseudo_gt_region_score * 255).astype("uint8"), cv2.COLORMAP_JET
-        )
+        pseudo_gt_region_score = cv2.applyColorMap((pseudo_gt_region_score * 255).astype("uint8"), cv2.COLORMAP_JET)
 
-        overlay_img = cv2.addWeighted(
-            word_image[:, :, ::-1], 0.7, pseudo_gt_region_score, 0.3, 5
-        )
+        overlay_img = cv2.addWeighted(word_image[:, :, ::-1], 0.7, pseudo_gt_region_score, 0.3, 5)
         vis_result = np.hstack(
             [
                 word_image[:, :, ::-1],
@@ -149,9 +145,7 @@ class PseudoCharBoxBuilder:
         cv2.imwrite(
             os.path.join(
                 self.vis_test_dir,
-                "{}_{}".format(
-                    img_name, f"pseudo_char_bbox_{random.randint(0,100)}.jpg"
-                ),
+                "{}_{}".format(img_name, f"pseudo_char_bbox_{random.randint(0,100)}.jpg"),
             ),
             vis_result,
         )
@@ -206,10 +200,9 @@ class PseudoCharBoxBuilder:
         return np.array([v1, v2, v3, v4])[index, :]
 
     def build_char_box(self, net, gpu, image, word_bbox, word, img_name=""):
-        word_image, M, horizontal_text_bool = self.crop_image_by_bbox(
-            image, word_bbox, word
-        )
-        real_word_without_space = word.replace("\s", "")
+        word_image, M, horizontal_text_bool = self.crop_image_by_bbox(image, word_bbox, word)
+        # real_word_without_space = word.replace("\s", "")
+        real_word_without_space = re.sub(r"\s", "", word)
         real_char_len = len(real_word_without_space)
 
         scale = 128.0 / word_image.shape[0]
@@ -231,9 +224,7 @@ class PseudoCharBoxBuilder:
         # Used for visualize only
         watershed_box = pseudo_char_bbox.copy()
 
-        pseudo_char_bbox = self.clip_into_boundary(
-            pseudo_char_bbox, region_score_rgb.shape
-        )
+        pseudo_char_bbox = self.clip_into_boundary(pseudo_char_bbox, region_score_rgb.shape)
 
         confidence = self.get_confidence(real_char_len, len(pseudo_char_bbox))
 
@@ -243,7 +234,11 @@ class PseudoCharBoxBuilder:
 
         if self.pseudo_vis_opt and self.flag:
             self.visualize_pseudo_label(
-                word_image, region_score, watershed_box, pseudo_char_bbox, img_name,
+                word_image,
+                region_score,
+                watershed_box,
+                pseudo_char_bbox,
+                img_name,
             )
 
         if len(pseudo_char_bbox) != 0:
@@ -254,9 +249,7 @@ class PseudoCharBoxBuilder:
 
         M_inv = np.linalg.pinv(M)
         for i in range(len(pseudo_char_bbox)):
-            pseudo_char_bbox[i] = cv2.perspectiveTransform(
-                pseudo_char_bbox[i][None, :, :], M_inv
-            )
+            pseudo_char_bbox[i] = cv2.perspectiveTransform(pseudo_char_bbox[i][None, :, :], M_inv)
 
         pseudo_char_bbox = self.clip_into_boundary(pseudo_char_bbox, image.shape)
 

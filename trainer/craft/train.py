@@ -23,14 +23,12 @@ from utils.util import copyStateDict, save_parser
 
 class Trainer(object):
     def __init__(self, config, gpu, mode):
-
         self.config = config
         self.gpu = gpu
         self.mode = mode
         self.net_param = self.get_load_param(gpu)
 
     def get_synth_loader(self):
-
         dataset = SynthTextDataSet(
             output_size=self.config.train.data.output_size,
             data_dir=self.config.train.synth_data_dir,
@@ -58,7 +56,6 @@ class Trainer(object):
         return syn_loader
 
     def get_custom_dataset(self):
-
         custom_dataset = CustomDataset(
             output_size=self.config.train.data.output_size,
             data_dir=self.config.data_root_dir,
@@ -81,7 +78,6 @@ class Trainer(object):
         return custom_dataset
 
     def get_load_param(self, gpu):
-
         if self.config.train.ckpt_path is not None:
             map_location = "cuda:%d" % gpu
             param = torch.load(self.config.train.ckpt_path, map_location=map_location)
@@ -91,7 +87,7 @@ class Trainer(object):
         return param
 
     def adjust_learning_rate(self, optimizer, gamma, step, lr):
-        lr = lr * (gamma ** step)
+        lr = lr * (gamma**step)
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
         return param_group["lr"]
@@ -136,7 +132,6 @@ class Trainer(object):
             )
 
     def train(self, buffer_dict):
-
         torch.cuda.set_device(self.gpu)
 
         # MODEL -------------------------------------------------------------------------------------------------------#
@@ -214,8 +209,8 @@ class Trainer(object):
             scaler = torch.cuda.amp.GradScaler()
 
             if (
-                    self.config.train.ckpt_path is not None
-                    and self.config.train.st_iter != 0
+                self.config.train.ckpt_path is not None
+                and self.config.train.st_iter != 0
             ):
                 scaler.load_state_dict(copyStateDict(self.net_param["scaler"]))
         else:
@@ -237,13 +232,13 @@ class Trainer(object):
         )
         while train_step < whole_training_step:
             for (
-                    index,
-                    (
-                            images,
-                            region_scores,
-                            affinity_scores,
-                            confidence_masks,
-                    ),
+                index,
+                (
+                    images,
+                    region_scores,
+                    affinity_scores,
+                    confidence_masks,
+                ),
             ) in enumerate(trn_real_loader):
                 craft.train()
                 if train_step > 0 and train_step % self.config.train.lr_decay == 0:
@@ -262,9 +257,12 @@ class Trainer(object):
 
                 if self.config.train.use_synthtext:
                     # Synth image load
-                    syn_image, syn_region_label, syn_affi_label, syn_confidence_mask = next(
-                        batch_syn
-                    )
+                    (
+                        syn_image,
+                        syn_region_label,
+                        syn_affi_label,
+                        syn_confidence_mask,
+                    ) = next(batch_syn)
                     syn_image = syn_image.cuda(non_blocking=True)
                     syn_region_label = syn_region_label.cuda(non_blocking=True)
                     syn_affi_label = syn_affi_label.cuda(non_blocking=True)
@@ -272,10 +270,10 @@ class Trainer(object):
 
                     # concat syn & custom image
                     images = torch.cat((syn_image, images), 0)
-                    region_image_label = torch.cat(
-                        (syn_region_label, region_scores), 0
+                    region_image_label = torch.cat((syn_region_label, region_scores), 0)
+                    affinity_image_label = torch.cat(
+                        (syn_affi_label, affinity_scores), 0
                     )
-                    affinity_image_label = torch.cat((syn_affi_label, affinity_scores), 0)
                     confidence_mask_label = torch.cat(
                         (syn_confidence_mask, confidence_masks), 0
                     )
@@ -286,7 +284,6 @@ class Trainer(object):
 
                 if self.config.train.amp:
                     with torch.cuda.amp.autocast():
-
                         output, _ = craft(images)
                         out1 = output[:, :, :, 0]
                         out2 = output[:, :, :, 1]
@@ -351,10 +348,9 @@ class Trainer(object):
                         wandb.log({"train_step": train_step, "mean_loss": mean_loss})
 
                 if (
-                        train_step % self.config.train.eval_interval == 0
-                        and train_step != 0
+                    train_step % self.config.train.eval_interval == 0
+                    and train_step != 0
                 ):
-
                     craft.eval()
 
                     print("Saving state, index:", train_step)
@@ -364,19 +360,19 @@ class Trainer(object):
                         "optimizer": optimizer.state_dict(),
                     }
                     save_param_path = (
-                            self.config.results_dir
-                            + "/CRAFT_clr_"
-                            + repr(train_step)
-                            + ".pth"
+                        self.config.results_dir
+                        + "/CRAFT_clr_"
+                        + repr(train_step)
+                        + ".pth"
                     )
 
                     if self.config.train.amp:
                         save_param_dic["scaler"] = scaler.state_dict()
                         save_param_path = (
-                                self.config.results_dir
-                                + "/CRAFT_clr_amp_"
-                                + repr(train_step)
-                                + ".pth"
+                            self.config.results_dir
+                            + "/CRAFT_clr_amp_"
+                            + repr(train_step)
+                            + ".pth"
                         )
 
                     torch.save(save_param_dic, save_param_path)
@@ -405,16 +401,13 @@ class Trainer(object):
             "optimizer": optimizer.state_dict(),
         }
         save_param_path = (
-                self.config.results_dir + "/CRAFT_clr_" + repr(train_step) + ".pth"
+            self.config.results_dir + "/CRAFT_clr_" + repr(train_step) + ".pth"
         )
 
         if self.config.train.amp:
             save_param_dic["scaler"] = scaler.state_dict()
             save_param_path = (
-                    self.config.results_dir
-                    + "/CRAFT_clr_amp_"
-                    + repr(train_step)
-                    + ".pth"
+                self.config.results_dir + "/CRAFT_clr_amp_" + repr(train_step) + ".pth"
             )
         torch.save(save_param_dic, save_param_path)
 
@@ -458,7 +451,6 @@ def main():
     else:
         mode = None
 
-
     # Apply config to wandb
     if config["wandb_opt"]:
         wandb.init(project="craft-stage2", entity="user_name", name=exp_name)
@@ -467,7 +459,7 @@ def main():
     config = DotDict(config)
 
     # Start train
-    buffer_dict = {"custom_data":None}
+    buffer_dict = {"custom_data": None}
     trainer = Trainer(config, 0, mode)
     trainer.train(buffer_dict)
 
